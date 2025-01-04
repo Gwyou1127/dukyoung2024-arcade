@@ -1,0 +1,61 @@
+@font-face {
+  font-family: 'HSGooltokki';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2210-2@1.0/HSGooltokki.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+    background-color: black;
+    color: white;
+    font-family: Ramche;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    position: relative; /* body를 상대적으로 위치시킴 */
+    background-image: url(img/index_img.png);
+    background-size: cover;
+  }
+  
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    float: left;
+    margin: 1.5%;
+    margin-top: 10%;
+  }
+  
+  .button {
+    background-color: rgb(227, 191, 34);
+    color: black;
+    border: 2px solid rgb(227, 191, 34);
+    padding: 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 24px;
+    margin: 10px 0;
+    cursor: pointer;
+    border-radius: 10px;
+    box-shadow: 3px 3px 8px rgba(194, 165, 24, 0.5);
+    transition: background-color 0.3s, transform 0.3s;
+    width: 200px;
+    font-family: HSGooltokki;
+    transition: 0.15s;
+  }
+  
+  .btnOrange.btnPush {
+    box-shadow: 0px 5px 0px 0px #A66615;
+  }
+
+  .btnPush:hover {
+    margin-top: 15px;
+    margin-bottom: 5px;
+  }
+  
+  .btnOrange.btnPush:hover {
+    box-shadow: 0px 0px 0px 0px #A66615;
+  }

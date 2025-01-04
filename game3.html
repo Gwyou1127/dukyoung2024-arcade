@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minesweeper Game</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(10, 30px);
+      grid-template-rows: repeat(10, 30px);
+      gap: 2px;
+      background: #111;
+    }
+    .cell {
+      width: 30px;
+      height: 30px;
+      background: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .cell.revealed {
+      background: #555;
+      cursor: default;
+    }
+    .cell.flagged {
+      background: #f39c12;
+    }
+    .hud {
+      position: absolute;
+      top: 0px;
+      right: 20px;
+      text-align: left;
+    }
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #222;
+      color: #fff;
+      padding: 20px;
+      border: 2px solid #fff;
+      text-align: center;
+      display: none;
+    }
+    .modal button {
+      margin: 10px;
+      padding: 10px 20px;
+      background: #555;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+    }
+    .modal button:hover {
+      background: #777;
+    }
+    .undo_arrow{
+            transform: rotate(180deg);
+            position: absolute;
+            top: -15px;
+            left: 15px;
+            color: #cccccc;
+            font-size: 16px;
+        }
+  </style>
+</head>
+<body>
+    <div class="undo_arrow" onclick="location.href = 'index.html'">
+        <h1>➜</h1>
+    </div>
+  <div class="hud">
+    <p>Score: <span id="score">0</span></p>
+  </div>
+  <div id="gameBoard" class="board"></div>
+  <div id="gameOverModal" class="modal">
+    <h2>Game Over</h2>
+    <button id="restartButton">Restart</button>
+    <button id="quitButton">Quit</button>
+  </div>
+
+  <script>
+    const boardSize = 10;
+    const mineCount = 20;
+    let board = [];
+    let revealedCount = 0;
+    let score = 0;
+    let gameOver = false;
+
+    const gameBoard = document.getElementById('gameBoard');
+    const scoreDisplay = document.getElementById('score');
+    const modal = document.getElementById('gameOverModal');
+    const restartButton = document.getElementById('restartButton');
+    const quitButton = document.getElementById('quitButton');
+
+    // Create the game board
+    function createBoard() {
+      gameBoard.innerHTML = '';
+      board = [];
+      revealedCount = 0;
+      score = 0;
+      scoreDisplay.textContent = score;
+
+      // Create a 2D array for the board
+      for (let y = 0; y < boardSize; y++) {
+        board.push([]);
+        for (let x = 0; x < boardSize; x++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          cell.addEventListener('click', () => revealCell(x, y));
+          cell.addEventListener('contextmenu', (event) => flagCell(event, x, y));  // Right-click to flag
+          gameBoard.appendChild(cell);
+          board[y].push({
+            revealed: false,
+            mine: false,
+            adjacentMines: 0,
+            flagged: false,
+            element: cell
+          });
+        }
+      }
+
+      // Place mines on the board
+      let minesPlaced = 0;
+      while (minesPlaced < mineCount) {
+        const x = Math.floor(Math.random() * boardSize);
+        const y = Math.floor(Math.random() * boardSize);
+        if (!board[y][x].mine) {
+          board[y][x].mine = true;
+          minesPlaced++;
+        }
+      }
+
+      // Calculate adjacent mines for each cell
+      for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+          if (!board[y][x].mine) {
+            let adjacentMines = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && ny >= 0 && nx < boardSize && ny < boardSize && board[ny][nx].mine) {
+                  adjacentMines++;
+                }
+              }
+            }
+            board[y][x].adjacentMines = adjacentMines;
+          }
+        }
+      }
+    }
+
+    // Reveal the cell and handle game over or scoring
+    function revealCell(x, y) {
+      if (gameOver || board[y][x].revealed || board[y][x].flagged) return;
+      const cell = board[y][x];
+      cell.revealed = true;
+      cell.element.classList.add('revealed');
+      if (cell.mine) {
+        cell.element.textContent = '💣';
+        gameOver = true;
+        revealAllMines();
+        showGameOverModal();
+      } else {
+        revealedCount++;
+        if (cell.adjacentMines > 0) {
+          cell.element.textContent = cell.adjacentMines;
+        }
+        score += 10;
+        scoreDisplay.textContent = score;
+        if (revealedCount === (boardSize * boardSize) - mineCount) {
+          gameOver = true;
+          showGameOverModal();
+        }
+      }
+    }
+
+    // Flag a cell (right-click)
+    function flagCell(event, x, y) {
+      event.preventDefault();
+      if (gameOver || board[y][x].revealed) return;
+      const cell = board[y][x];
+      if (cell.flagged) {
+        cell.flagged = false;
+        cell.element.classList.remove('flagged');
+        cell.element.textContent = '';  // Remove flag emoji
+      } else {
+        cell.flagged = true;
+        cell.element.classList.add('flagged');
+        cell.element.textContent = '🚩';  // Display a flag emoji
+        // Check if it's a mine and the player flagged it
+        if (cell.mine) {
+          gameOver = true;
+          revealAllMines();
+          showGameOverModal();
+        }
+      }
+    }
+
+    // Reveal all mines when the game is over
+    function revealAllMines() {
+      board.forEach(row => {
+        row.forEach(cell => {
+          if (cell.mine) {
+            cell.element.textContent = '💣';
+          }
+        });
+      });
+    }
+
+    // Show game over modal
+    function showGameOverModal() {
+      modal.style.display = 'block';
+    }
+
+    // Restart the game
+    restartButton.addEventListener('click', () => {
+      gameOver = false;
+      modal.style.display = 'none';
+      createBoard();
+    });
+
+    // Quit the game
+    quitButton.addEventListener('click', () => {
+      window.close();
+    });
+
+    // Initialize the game
+    createBoard();
+  </script>
+</body>
+</html>

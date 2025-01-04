@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tetris Game</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      border: 2px solid #fff;
+      background: #111;
+    }
+    .hud {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      text-align: left;
+    }
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #222;
+      color: #fff;
+      padding: 20px;
+      border: 2px solid #fff;
+      text-align: center;
+      display: none;
+    }
+    .modal button {
+      margin: 10px;
+      padding: 10px 20px;
+      background: #555;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+    }
+    .modal button:hover {
+      background: #777;
+    }
+
+    .undo_arrow{
+            transform: rotate(180deg);
+            position: absolute;
+            top: -15px;
+            left: 15px;
+            color: #cccccc;
+            font-size: 16px;
+        }
+  </style>
+</head>
+<body>
+  <div class="undo_arrow" onclick="location.href = 'index.html'">
+    <h1>➜</h1>
+</div>
+  <canvas id="tetris" width="300" height="600"></canvas>
+  <div class="hud">
+    <p>Score: <span id="score">0</span></p>
+    <p>Next:</p>
+    <canvas id="next" width="120" height="120"></canvas>
+  </div>
+  <div id="gameOverModal" class="modal">
+    <h2>Game Over</h2>
+    <button id="restartButton">Restart</button>
+    <button id="quitButton">Quit</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('tetris');
+    const context = canvas.getContext('2d');
+    const nextCanvas = document.getElementById('next');
+    const nextContext = nextCanvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score');
+    const modal = document.getElementById('gameOverModal');
+    const restartButton = document.getElementById('restartButton');
+    const quitButton = document.getElementById('quitButton');
+
+    context.scale(30, 30);
+    nextContext.scale(30, 30);
+
+    function createMatrix(width, height) {
+      const matrix = [];
+      while (height--) {
+        matrix.push(new Array(width).fill(0));
+      }
+      return matrix;
+    }
+
+    function createPiece(type) {
+      switch (type) {
+        case 'T':
+          return [
+            [0, 1, 0],
+            [1, 1, 1],
+            [0, 0, 0],
+          ];
+        case 'O':
+          return [
+            [2, 2],
+            [2, 2],
+          ];
+        case 'L':
+          return [
+            [0, 3, 0],
+            [0, 3, 0],
+            [0, 3, 3],
+          ];
+        case 'J':
+          return [
+            [0, 4, 0],
+            [0, 4, 0],
+            [4, 4, 0],
+          ];
+        case 'I':
+          return [
+            [0, 5, 0, 0],
+            [0, 5, 0, 0],
+            [0, 5, 0, 0],
+            [0, 5, 0, 0],
+          ];
+        case 'S':
+          return [
+            [0, 6, 6],
+            [6, 6, 0],
+            [0, 0, 0],
+          ];
+        case 'Z':
+          return [
+            [7, 7, 0],
+            [0, 7, 7],
+            [0, 0, 0],
+          ];
+      }
+    }
+
+    function drawMatrix(matrix, offset, ctx) {
+      matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            ctx.fillStyle = colors[value];
+            ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
+          }
+        });
+      });
+    }
+
+    function draw() {
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      drawMatrix(arena, { x: 0, y: 0 }, context);
+      drawMatrix(player.matrix, player.pos, context);
+
+      nextContext.fillStyle = '#000';
+      nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+      drawMatrix(nextPiece, { x: 1, y: 1 }, nextContext);
+    }
+
+    function merge(arena, player) {
+      player.matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            arena[y + player.pos.y][x + player.pos.x] = value;
+          }
+        });
+      });
+    }
+
+    function rotate(matrix, dir) {
+      for (let y = 0; y < matrix.length; ++y) {
+        for (let x = 0; x < y; ++x) {
+          [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+        }
+      }
+      if (dir > 0) {
+        matrix.forEach(row => row.reverse());
+      } else {
+        matrix.reverse();
+      }
+    }
+
+    function playerDrop() {
+      player.pos.y++;
+      if (collide(arena, player)) {
+        player.pos.y--;
+        merge(arena, player);
+        playerReset();
+        arenaSweep();
+        updateScore();
+      }
+      dropCounter = 0;
+    }
+
+    function playerMove(offset) {
+      player.pos.x += offset;
+      if (collide(arena, player)) {
+        player.pos.x -= offset;
+      }
+    }
+
+    function playerInstantDrop() {
+      while (!collide(arena, player)) {
+        player.pos.y++;
+      }
+      player.pos.y--;
+      merge(arena, player);
+      playerReset();
+      arenaSweep();
+      updateScore();
+    }
+
+    function playerReset() {
+      player.matrix = nextPiece;
+      nextPiece = createPiece(pieces[pieces.length * Math.random() | 0]);
+      player.pos.y = 0;
+      player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+      if (collide(arena, player)) {
+        gameOver();
+      }
+    }
+
+    function collide(arena, player) {
+      const [m, o] = [player.matrix, player.pos];
+      for (let y = 0; y < m.length; ++y) {
+        for (let x = 0; x < m[y].length; ++x) {
+          if (m[y][x] !== 0 && (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function arenaSweep() {
+      outer: for (let y = arena.length - 1; y > 0; --y) {
+        for (let x = 0; x < arena[y].length; ++x) {
+          if (arena[y][x] === 0) {
+            continue outer;
+          }
+        }
+        const row = arena.splice(y, 1)[0].fill(0);
+        arena.unshift(row);
+        ++y;
+        score += 10;
+      }
+    }
+
+    function updateScore() {
+      scoreDisplay.textContent = score;
+    }
+
+    function gameOver() {
+      modal.style.display = 'block';
+    }
+
+    restartButton.addEventListener('click', () => {
+      arena.forEach(row => row.fill(0));
+      score = 0;
+      updateScore();
+      playerReset();
+      modal.style.display = 'none';
+    });
+
+    quitButton.addEventListener('click', () => {
+      window.location.href = 'index.html'
+    });
+
+    let dropCounter = 0;
+    let dropInterval = 1000;
+
+    let lastTime = 0;
+    let score = 0;
+
+    const arena = createMatrix(10, 20);
+    const pieces = 'ILJOTSZ';
+    const colors = [
+      null,
+      '#FF0D72', // Color 1
+      '#0DC2FF', // Color 2
+      '#0DFF72', // Color 3
+      '#F538FF', // Color 4
+      '#FF8E0D', // Color 5
+      '#FFE138', // Color 6
+      '#3877FF', // Color 7
+    ];
+
+    const player = {
+      pos: { x: 0, y: 0 },
+      matrix: null,
+    };
+
+    let nextPiece = createPiece(pieces[pieces.length * Math.random() | 0]);
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'ArrowLeft') {
+        playerMove(-1);
+      } else if (event.key === 'ArrowRight') {
+        playerMove(1);
+      } else if (event.key === 'ArrowDown') {
+        playerDrop();
+      } else if (event.key === 'ArrowUp') {
+        rotate(player.matrix, 1);
+      } else if (event.key === ' ') {
+        playerInstantDrop();
+      }
+    });
+
+    playerReset();
+    updateScore();
+    update();
+
+    function update(time = 0) {
+      const deltaTime = time - lastTime;
+      lastTime = time;
+
+      dropCounter += deltaTime;
+      if (dropCounter > dropInterval) {
+        playerDrop();
+      }
+
+      draw();
+      requestAnimationFrame(update);
+    }
+  </script>
+</body>
+</html
