@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="img/favicon.ico">
+
     <title>지렁이 게임</title>
     <style>
         body {
@@ -55,6 +56,7 @@
             left: 15px;
             color: #cccccc;
             font-size: 16px;
+            left: 10px;
         }
 
         #joystick-container {
@@ -63,9 +65,11 @@
     </style>
 </head>
 <body>
+
     <div class="undo_arrow" onclick="location.href = 'index.html'">
         <h1>➜</h1>
     </div>
+
     <canvas id="gameCanvas" width="400" height="400"></canvas>
     <button id="startButton" onclick="startGame()">게임 시작하기</button>
     <div id="score">점수: 0</div>
